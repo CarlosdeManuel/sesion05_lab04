@@ -1,0 +1,6 @@
+master
+nodo01
+nodo02
+
+[nodos]
+nodo0[1:2]

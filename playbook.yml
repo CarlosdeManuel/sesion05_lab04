@@ -1,0 +1,58 @@
+---
+- name: "Laboratorio de Condicionales"
+  hosts: nodo01
+ 
+  tasks:
+  - name: "Muestra hostname y su hora"
+    debug:
+      msg: "El nodo {{ ansible_hostname }} tiene la hora: {{ ansible_date_time.time}}"
+  - name: "Poner timezone en Europe/Moscow si lunes, miercoles, viernes o domingos y la hora mayor o igual que las 12 a.m."
+    timezone:
+      name: Europe/Moscow
+    register: cambio_moscu
+    when: >
+      ( ansible_date_time.weekday_number == "1" or 
+        ansible_date_time.weekday_number == "3" or 
+        ansible_date_time.weekday_number == "5"or 
+        ansible_date_time.weekday_number == "7" ) and
+        ansible_date_time.hour >= "12"
+
+  - name: "Poner timezone en Asia/Tokyo si lunes, miercoles, viernes o domingos y la hora mayor o igual que las 12 a.m."
+    timezone:
+      name: Asia/Tokyo
+    register: cambio_tokio
+    when: >
+      (ansible_date_time.weekday_number == "2" or 
+       ansible_date_time.weekday_number == "4" or 
+       ansible_date_time.weekday_number == "6") and
+      ansible_date_time.hour >= "10"
+  - name: "Mirar HORA DESPUES con comando"
+    command: "/usr/bin/date"
+    register: hora_despues     
+
+  - name: "Crear fichero"
+    file:
+        path: "/tmp/datos_horario_{{ ansible_hostname }}.txt"
+        state: touch
+        mode: 0655
+  - name: "Anadir datos al fichero"
+    lineinfile:
+      path: "/tmp/datos_horario_{{ ansible_hostname }}.txt"
+      line: |
+        - La zona horaria antes del cambio es {{ ansible_date_time.tz}} y la hora era {{ ansible_date_time.time}}
+        - La hora y zona horaria despues del cambio es {{ hora_despues.stdout_lines[0] }}
+      create: yes
+  - name: " Si cambio a Moscu, volver a la zona anterior"
+    timezone: 
+      name: "{{ cambio_moscu.diff.before.name }}"
+    when: cambio_moscu.changed
+
+  - name: " Si cambio a Tokio volver a la zona anterior"
+    timezone: 
+      name: "{{ cambio_tokio.diff.before.name }}"
+    when: cambio_tokio.changed   
+  
+  - name: "Volver a dejar en Europe/Madrid"
+    timezone:
+      name: Europe/Madrid
+...
